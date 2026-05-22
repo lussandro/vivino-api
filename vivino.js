@@ -138,7 +138,7 @@ const run = async (
 		headless: true,
 		defaultViewport: { width: 1920, height: 1040 },
 		devtools: false,
-		args: ['--start-maximized'],
+		args: ['--start-maximized', '--no-sandbox', '--disable-setuid-sandbox'],
 	});
 
 	const page = await browser.newPage();

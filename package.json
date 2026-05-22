@@ -1,12 +1,13 @@
 {
 	"type": "module",
 	"engines": {
-		"node": "12"
+		"node": ">=18"
 	},
 	"dependencies": {
-		"fs-extra": "^9.0.1",
-		"minimist": "^1.2.5",
-		"puppeteer": "^5.5.0"
+		"express": "^4.19.2",
+		"fs-extra": "^11.2.0",
+		"minimist": "^1.2.8",
+		"puppeteer": "^22.15.0"
 	},
 	"devDependencies": {
 		"eslint": "^7.14.0"
