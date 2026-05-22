@@ -14,13 +14,24 @@ Upstream stopped in 2020. Vivino refactored its DOM since then — the original 
 - Ships a Dockerfile so you do not need to install Chrome/Chromium locally.
 - Adds an Express server on port `2010` exposing `/search` and `/health`.
 
-## Quick start (Docker)
+## Quick start
+
+### docker-compose (recommended — includes Redis cache)
+
+```bash
+docker-compose up -d --build
+curl "http://localhost:2010/health"
+curl "http://localhost:2010/search?name=malbec&minPrice=15&maxPrice=25&minRatings=500&maxPages=2"
+```
+
+Brings up `vivino-api` on `:2010` plus a Redis service (`maxmemory 128mb`, `allkeys-lru`). Cache survives `vivino-api` restarts.
+
+### docker only (in-memory cache)
 
 ```bash
 docker build -t vivino-api .
 docker run -d --name vivino-api -p 2010:2010 vivino-api
-curl "http://localhost:2010/health"
-curl "http://localhost:2010/search?name=malbec&minPrice=15&maxPrice=25&minRatings=500&maxPages=2"
+curl "http://localhost:2010/search?name=malbec&maxPages=2"
 ```
 
 ## HTTP API
@@ -70,16 +81,17 @@ Response:
 
 Possible `status` values: `FULL_DATA`, `PAGE_LIMIT`, `RESPONSE_ERROR`, `SHIP_TO_ERROR`, `SHIP_TO_CONFIRM_ERROR`, `SOME_EXCEPTION`.
 
-## Legacy CLI
+## CLI
 
-The original `vivino.js` script is still in the repo and still writes `vivino-out.json`:
+`vivino.js` shares the same `lib/scraper.js` as the server, so the CLI uses the same selectors, dedup, and 429 backoff as the HTTP API:
 
 ```bash
 node vivino.js --name=malbec --minPrice=10 --maxPrice=25
-node vivino.js "--name=Pinot Noir" --country=US --state=NY
+node vivino.js "--name=Pinot Noir" --country=US --state=NY --maxPages=3
+node vivino.js --name=malbec --out=results.json --concurrency=5
 ```
 
-Note: the CLI uses the *old* `collectItems()`. Only `server.js` has the updated selectors. PRs welcome to backport.
+Output JSON includes the same fields as `/search` (`vinos`, `status`, `deduped`).
 
 ## Local development (no Docker)
 
@@ -105,7 +117,13 @@ Measured on this fork (warm Docker, default `PAGE_CONCURRENCY=3`):
 Tuning knobs (env vars):
 
 - `PAGE_CONCURRENCY` (default `3`) — parallel page fetches. Raise carefully; Vivino sends 429 if pushed.
-- `CACHE_TTL_MS` (default `60000`) — in-memory cache TTL per query.
+- `CACHE_TTL_MS` (default `60000`) — cache TTL per query (memory or Redis).
+- `REDIS_URL` (optional, e.g. `redis://redis:6379`) — when set, use Redis as cache backend. Falls back to in-memory if connection fails. Cache survives server restarts.
+- `PORT` (default `2010`).
+
+### 429 handling
+
+`fetchPage` retries each page on HTTP 429 with exponential backoff (1s → 2s → 4s → 8s → 16s, capped at 30s, max 5 retries). Honors the `Retry-After` header when present. Logs each retry as `[<name>] 429 page <i>, retry <n> in <ms>ms` to stdout.
 
 Architecture choices that made it fast:
 

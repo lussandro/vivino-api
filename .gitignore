@@ -1,6 +1,6 @@
 node_modules/
-output/vivino-out.json
-output/page.html
+output/*.json
+output/*.html
 probe.mjs
 *.log
 .DS_Store

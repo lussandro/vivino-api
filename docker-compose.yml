@@ -1,0 +1,23 @@
+services:
+  vivino-api:
+    build: .
+    image: vivino-api:latest
+    ports:
+      - "2010:2010"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CACHE_TTL_MS=300000
+      - PAGE_CONCURRENCY=3
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:

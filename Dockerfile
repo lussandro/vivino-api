@@ -15,6 +15,7 @@ COPY package.json ./
 RUN npm install --omit=dev
 
 COPY vivino.js server.js ./
+COPY lib ./lib
 
 EXPOSE 2010
 CMD ["node", "server.js"]
