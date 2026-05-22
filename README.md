@@ -91,6 +91,31 @@ node vivino.js --name=malbec   # CLI (legacy selectors)
 
 Requires Node 18+. Puppeteer will download a matching Chromium on first install.
 
+## Performance
+
+Measured on this fork (warm Docker, default `PAGE_CONCURRENCY=3`):
+
+| Scenario | Time | Items |
+| --- | --- | --- |
+| Cold start (first request after server boot) | ~2.7s | 24 |
+| Warm single page | ~3s | 24 |
+| Warm 3 pages (parallel) | ~7s | 72 |
+| Cache hit (same query within 60s) | ~10ms | — |
+
+Tuning knobs (env vars):
+
+- `PAGE_CONCURRENCY` (default `3`) — parallel page fetches. Raise carefully; Vivino sends 429 if pushed.
+- `CACHE_TTL_MS` (default `60000`) — in-memory cache TTL per query.
+
+Architecture choices that made it fast:
+
+- **Persistent browser** — one `puppeteer.launch` shared across all `/search` requests (auto-relaunch on disconnect). Cold Chromium boot only happens once per server lifetime.
+- **`domcontentloaded` + `waitForSelector`** instead of `networkidle2` — does not block on analytics/tracking XHRs.
+- **Skip BASE_URL warmup** — only visit `vivino.com/` and call `setShipTo` when the request includes `country`/`state`.
+- **Parallel pagination** — pages 1..N fetched concurrently (capped by `PAGE_CONCURRENCY`) and merged in order.
+- **TTL cache + gzip** — instant repeats and smaller payloads.
+- **Aggressive request blocking** — only `document`, `xhr`, `fetch`, `script` reach the network. Images, stylesheets, fonts, media all aborted.
+
 ## Notes & caveats
 
 - Vivino is a JS-rendered SPA and actively rate-limits scrapers. Expect 429s for bursty traffic; the server backs off (15s × attempt).
