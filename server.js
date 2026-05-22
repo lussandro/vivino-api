@@ -266,6 +266,26 @@ const scrape = async (params) => {
 	if (!stopReason) stopReason = result.vinos.length >= maxPages * 1 ? 'PAGE_LIMIT' : 'FULL_DATA';
 	result.status = stopReason;
 
+	const dedupKey = (v) => {
+		if (!v.link) return `${v.winery || ''}|${v.name || ''}`;
+		try {
+			const u = new URL(v.link);
+			const year = u.searchParams.get('year') || '';
+			return `${u.pathname}|${year}`;
+		} catch (_) {
+			return v.link;
+		}
+	};
+	const seen = new Set();
+	const before = result.vinos.length;
+	result.vinos = result.vinos.filter((v) => {
+		const k = dedupKey(v);
+		if (seen.has(k)) return false;
+		seen.add(k);
+		return true;
+	});
+	result.deduped = before - result.vinos.length;
+
 	result.vinos = result.vinos.filter((e) => {
 		if (minPrice && (e.price || !noPriceIncluded) && e.price < minPrice) return false;
 		if (maxPrice && e.price > maxPrice) return false;
